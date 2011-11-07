@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+	android:orientation="vertical" android:layout_width="fill_parent"
+	android:layout_height="fill_parent">
+	<LinearLayout android:id="@+id/row_1"
+        android:orientation="horizontal" 
+        android:layout_width="fill_parent" 
+        android:layout_height="wrap_content" 
+        android:paddingBottom="@dimen/row_spacing">
+    
+        <LinearLayout android:id="@+id/box_steps"
+            android:orientation="vertical"
+            android:layout_width="fill_parent" 
+            android:layout_height="wrap_content"
+            android:gravity="center_horizontal"
+            android:paddingRight="@dimen/margin"
+            android:layout_weight="1">
+        
+            <TextView android:id="@+id/step_value"
+                android:textSize="@dimen/value"
+                android:layout_width="fill_parent" 
+                android:layout_height="wrap_content"
+                android:gravity="center_horizontal" 
+                android:background="@color/display_background" 
+                android:paddingLeft="@dimen/padding" 
+                android:paddingRight="@dimen/padding" 
+                android:paddingTop="@dimen/padding"
+                android:text=""/>
+            <TextView android:id="@+id/step_units"
+                android:gravity="center_horizontal"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:textSize="@dimen/units" 
+                android:text="@string/steps" 
+                android:background="@color/display_background" 
+                android:paddingBottom="@dimen/padding"/>
+
+        </LinearLayout>
+
+        <LinearLayout android:id="@+id/box_distance"
+            android:orientation="vertical"
+            android:layout_width="fill_parent" 
+            android:layout_height="wrap_content"
+            android:gravity="center_horizontal"
+            android:layout_weight="1">
+            
+            <TextView android:id="@+id/distance_value"
+                android:textSize="@dimen/value"
+                android:layout_width="fill_parent" 
+                android:layout_height="wrap_content"
+                android:gravity="center_horizontal" 
+                android:background="@color/display_background" 
+                android:paddingTop="@dimen/padding" 
+                android:paddingRight="@dimen/padding" 
+                android:paddingLeft="@dimen/padding"
+                android:text=""/>
+            <TextView android:id="@+id/distance_units"
+                android:gravity="center_horizontal"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:textSize="@dimen/units"
+                android:text="@string/kilometers" 
+                android:background="@color/display_background" 
+                android:paddingBottom="@dimen/padding"/>
+
+        </LinearLayout>
+    </LinearLayout>
+	<TextView android:layout_width="fill_parent"
+		android:layout_height="wrap_content" android:text="@string/hello"
+		android:id="@+id/title" />
+	<Button android:layout_width="fill_parent"
+		android:layout_height="wrap_content" android:id="@+id/exit"
+		android:text="Close App" />
+	<Button android:layout_width="fill_parent"
+		android:layout_height="wrap_content" android:id="@+id/clear"
+		android:text="Clear" />
+	<ScrollView android:layout_width="fill_parent"
+		android:layout_height="wrap_content">
+		<EditText android:layout_width="fill_parent"
+			android:layout_height="wrap_content" android:id="@+id/textarea" />
+	</ScrollView>
+</LinearLayout>

@@ -1,0 +1,9 @@
+Manifest-Version: 1.0
+Bundle-ManifestVersion: 2
+Bundle-Name: IOIOLib
+Bundle-SymbolicName: IOIOLib
+Bundle-Version: 1.0.0.qualifier
+Export-Package: ioio.lib.api,
+ ioio.lib.api.exception,
+ ioio.lib.impl,
+ ioio.lib.util
