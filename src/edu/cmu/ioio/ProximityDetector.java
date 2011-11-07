@@ -36,6 +36,8 @@ import android.os.IBinder;
 import android.os.Message;
 import android.preference.PreferenceManager;
 import android.util.Log;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.Button;
@@ -43,6 +45,7 @@ import android.widget.EditText;
 import android.widget.TextView;
 import edu.cmu.distance.Pedometer;
 import edu.cmu.distance.PedometerSettings;
+import edu.cmu.distance.Settings;
 import edu.cmu.distance.StepService;
 import edu.cmu.distance.Utils;
 
@@ -59,7 +62,7 @@ public class ProximityDetector extends Activity {
 	private IOIOThread ioio_thread_;
 	static Handler guiHandler;
 	JSONObject jsonObject;
-	Button exitBtn, clearBtn;
+	Button clearBtn;
 
 	URL paraimpuURL = null;
 	URLConnection yc = null;
@@ -245,7 +248,6 @@ public class ProximityDetector extends Activity {
 		}
 
 		super.onPause();
-		stopStepService();
 
 		try {
 			ioio_thread_.join();
@@ -313,19 +315,6 @@ public class ProximityDetector extends Activity {
 	private void initializeGUIElements() {
 		textArea = (EditText) findViewById(R.id.textarea);
 		textArea.setFocusable(false);
-		exitBtn = (Button) findViewById(R.id.exit);
-		exitBtn.setOnClickListener(new OnClickListener() {
-
-			@Override
-			public void onClick(View v) {
-				resetValues(false);
-				unbindStepService();
-                stopStepService();
-                mQuitting = true;
-                finish();
-				System.exit(0);
-			}
-		});
 		clearBtn = (Button) findViewById(R.id.clear);
 		clearBtn.setOnClickListener(new OnClickListener() {
 
@@ -399,13 +388,70 @@ public class ProximityDetector extends Activity {
 							.getVoltageVal() == val2.getVoltageVal() ? 0 : 1));
 				}
 			});
-//			for (int i = 0; i < irDistanceList.size(); i++) {
-//				textArea.append(i + " " + irDistanceList.get(i).getVoltageVal() + " "
-//						+ irDistanceList.get(i).getDistanceVal() + "\n");
-//			}
+			for (int i = 0; i < irDistanceList.size(); i++) {
+				textArea.append(i + " " + irDistanceList.get(i).getVoltageVal() + " "
+						+ irDistanceList.get(i).getDistanceVal() + "\n");
+			}
 		} catch (Exception ioe) {
 			ioe.printStackTrace();
 		}
 	}
+    private static final int MENU_SETTINGS = 8;
+    private static final int MENU_QUIT     = 9;
 
+    private static final int MENU_PAUSE = 1;
+    private static final int MENU_RESUME = 2;
+    private static final int MENU_RESET = 3;
+    
+    /* Creates the menu items */
+    public boolean onPrepareOptionsMenu(Menu menu) {
+        menu.clear();
+        if (mIsRunning) {
+            menu.add(0, MENU_PAUSE, 0, R.string.pause)
+            .setIcon(android.R.drawable.ic_media_pause)
+            .setShortcut('1', 'p');
+        }
+        else {
+            menu.add(0, MENU_RESUME, 0, R.string.resume)
+            .setIcon(android.R.drawable.ic_media_play)
+            .setShortcut('1', 'p');
+        }
+        menu.add(0, MENU_RESET, 0, R.string.reset)
+        .setIcon(android.R.drawable.ic_menu_close_clear_cancel)
+        .setShortcut('2', 'r');
+        menu.add(0, MENU_SETTINGS, 0, R.string.settings)
+        .setIcon(android.R.drawable.ic_menu_preferences)
+        .setShortcut('8', 's')
+        .setIntent(new Intent(this, Settings.class));
+        menu.add(0, MENU_QUIT, 0, R.string.quit)
+        .setIcon(android.R.drawable.ic_lock_power_off)
+        .setShortcut('9', 'q');
+        return true;
+    }
+
+    /* Handles item selections */
+    public boolean onOptionsItemSelected(MenuItem item) {
+        switch (item.getItemId()) {
+            case MENU_PAUSE:
+                unbindStepService();
+                stopStepService();
+                return true;
+            case MENU_RESUME:
+                startStepService();
+                bindStepService();
+                return true;
+            case MENU_RESET:
+                resetValues(true);
+                return true;
+            case MENU_QUIT:
+                resetValues(false);
+                unbindStepService();
+                stopStepService();
+                mQuitting = true;
+                finish();
+                return true;
+        }
+        return false;
+    }
+ 
 }
