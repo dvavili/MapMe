@@ -43,7 +43,6 @@ import android.view.View.OnClickListener;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
-import edu.cmu.distance.Pedometer;
 import edu.cmu.distance.PedometerSettings;
 import edu.cmu.distance.Settings;
 import edu.cmu.distance.StepService;
@@ -62,7 +61,7 @@ public class ProximityDetector extends Activity {
 	private IOIOThread ioio_thread_;
 	static Handler guiHandler;
 	JSONObject jsonObject;
-	Button clearBtn;
+	Button clearBtn, startIOIOBtn;
 
 	URL paraimpuURL = null;
 	URLConnection yc = null;
@@ -77,8 +76,8 @@ public class ProximityDetector extends Activity {
 	private Utils mUtils;
 	private static final String TAG = "MapMe";
 	private boolean mQuitting = false; // Set when user selected Quit from menu,
-										// can be used by onPause, onStop,
-										// onDestroy
+	// can be used by onPause, onStop,
+	// onDestroy
 
 	private boolean mIsRunning;
 	ArrayList<DistanceTable> irDistanceList = null;
@@ -86,6 +85,7 @@ public class ProximityDetector extends Activity {
 	private StepService mService;
 
 	private ServiceConnection mConnection = new ServiceConnection() {
+		@Override
 		public void onServiceConnected(ComponentName className, IBinder service) {
 			mService = ((StepService.StepBinder) service).getService();
 
@@ -94,6 +94,7 @@ public class ProximityDetector extends Activity {
 
 		}
 
+		@Override
 		public void onServiceDisconnected(ComponentName className) {
 			mService = null;
 		}
@@ -105,17 +106,18 @@ public class ProximityDetector extends Activity {
 			synchronized (ProximityDetector.this) {
 				switch (msg.what) {
 				case Constants.STEPS_MSG:
-					mStepValue = (int) msg.arg1;
+					mStepValue = msg.arg1;
 					mStepValueView.setText("" + mStepValue);
-					ioio_thread_.scanSurrounding(irDistanceList);
 					break;
 				case Constants.DISTANCE_MSG:
-					mDistanceValue = ((int) msg.arg1) / 1000f;
+					mDistanceValue = msg.arg1 / 1000f;
 					if (mDistanceValue <= 0) {
 						mDistanceValueView.setText("0");
 					} else {
 						mDistanceValueView.setText(("" + (mDistanceValue)));
-					}
+					} 
+					if (ioio_thread_ != null)
+						ioio_thread_.scanSurrounding(mDistanceValue, 0, irDistanceList);
 					break;
 				default:
 					super.handleMessage(msg);
@@ -126,23 +128,32 @@ public class ProximityDetector extends Activity {
 
 	// TODO: unite all into 1 type of message
 	private StepService.ICallback mCallback = new StepService.ICallback() {
+		@Override
 		public void stepsChanged(int value) {
 			mHandler.sendMessage(mHandler.obtainMessage(Constants.STEPS_MSG, value, 0));
 		}
 
+		@Override
 		public void distanceChanged(float value) {
-			mHandler.sendMessage(mHandler.obtainMessage(Constants.DISTANCE_MSG,
-					(int) (value * 1000), 0));
+			mHandler.sendMessage(mHandler.obtainMessage(Constants.DISTANCE_MSG, (int) (value * 1000), 0));
 		}
 
-		public void paceChanged(int value) {}
-		public void speedChanged(float value) {}
-		public void caloriesChanged(float value) {}
+		@Override
+		public void paceChanged(int value) {
+		}
+
+		@Override
+		public void speedChanged(float value) {
+		}
+
+		@Override
+		public void caloriesChanged(float value) {
+		}
 	};
 
 	/**
-	 * Called when the activity is first created. Here we normally initialize
-	 * our GUI.
+	 * Called when the activity is first created. Here we normally initialize our
+	 * GUI.
 	 */
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
@@ -155,10 +166,9 @@ public class ProximityDetector extends Activity {
 		jsonObject = new JSONObject();
 
 		initializeGUIElements();
-		textArea.append("in create");
 		loadDistanceMapValues();
 		createGUIHandler();
-		startReceivingMessages();
+		// startReceivingMessages();
 	}
 
 	@Override
@@ -169,6 +179,7 @@ public class ProximityDetector extends Activity {
 
 	private void startReceivingMessages() {
 		new Thread() {
+			@Override
 			public void run() {
 				try {
 					while (true) {
@@ -204,8 +215,6 @@ public class ProximityDetector extends Activity {
 	@Override
 	protected void onResume() {
 		super.onResume();
-		ioio_thread_ = new IOIOThread();
-		ioio_thread_.start();
 
 		mStepValueView = (TextView) findViewById(R.id.step_value);
 		mDistanceValueView = (TextView) findViewById(R.id.distance_value);
@@ -228,13 +237,11 @@ public class ProximityDetector extends Activity {
 		}
 
 		mPedometerSettings.clearServiceRunning();
-		showMsg("in resume", Constants.DONT_PUBLISH);
 	}
 
 	/**
-	 * Called when the application is paused. We want to disconnect with the
-	 * IOIO at this point, as the user is no longer interacting with our
-	 * application.
+	 * Called when the application is paused. We want to disconnect with the IOIO
+	 * at this point, as the user is no longer interacting with our application.
 	 */
 	@Override
 	protected void onPause() {
@@ -265,8 +272,8 @@ public class ProximityDetector extends Activity {
 
 	private void bindStepService() {
 		Log.i(TAG, "[SERVICE] Bind");
-		bindService(new Intent(ProximityDetector.this, StepService.class), mConnection, Context.BIND_AUTO_CREATE
-				+ Context.BIND_DEBUG_UNBIND);
+		bindService(new Intent(ProximityDetector.this, StepService.class), mConnection,
+				Context.BIND_AUTO_CREATE + Context.BIND_DEBUG_UNBIND);
 	}
 
 	private void unbindStepService() {
@@ -282,26 +289,25 @@ public class ProximityDetector extends Activity {
 		}
 		mIsRunning = false;
 	}
-	
+
 	private void resetValues(boolean updateDisplay) {
-        if (mService != null && mIsRunning) {
-            mService.resetValues();                    
-        }
-        else {
-            mStepValueView.setText("0");
-            mDistanceValueView.setText("0");
-            SharedPreferences state = getSharedPreferences("state", 0);
-            SharedPreferences.Editor stateEditor = state.edit();
-            if (updateDisplay) {
-                stateEditor.putInt("steps", 0);
-                stateEditor.putInt("pace", 0);
-                stateEditor.putFloat("distance", 0);
-                stateEditor.putFloat("speed", 0);
-                stateEditor.putFloat("calories", 0);
-                stateEditor.commit();
-            }
-        }
-    }
+		if (mService != null && mIsRunning) {
+			mService.resetValues();
+		} else {
+			mStepValueView.setText("0");
+			mDistanceValueView.setText("0");
+			SharedPreferences state = getSharedPreferences("state", 0);
+			SharedPreferences.Editor stateEditor = state.edit();
+			if (updateDisplay) {
+				stateEditor.putInt("steps", 0);
+				stateEditor.putInt("pace", 0);
+				stateEditor.putFloat("distance", 0);
+				stateEditor.putFloat("speed", 0);
+				stateEditor.putFloat("calories", 0);
+				stateEditor.commit();
+			}
+		}
+	}
 
 	public static void showMsg(String msg, int publish) {
 		Message m = new Message();
@@ -323,11 +329,21 @@ public class ProximityDetector extends Activity {
 				showMsg("", Constants.CLEAR);
 			}
 		});
+		startIOIOBtn = (Button) findViewById(R.id.startIOIO);
+		startIOIOBtn.setOnClickListener(new OnClickListener() {
 
+			@Override
+			public void onClick(View v) {
+				ioio_thread_ = new IOIOThread();
+				ioio_thread_.start();
+//				resetValues(true);
+			}
+		});
 	}
 
 	private void createGUIHandler() {
 		guiHandler = new Handler() {
+			@Override
 			public void handleMessage(Message msg) {
 				if (msg.arg1 == Constants.PUBLISH) {
 					try {
@@ -343,6 +359,7 @@ public class ProximityDetector extends Activity {
 						httpost.setHeader("Accept", "application/json");
 						httpost.setHeader("Content-type", "application/json");
 						httpclient.execute(httpost);
+						textArea.append(msg.obj.toString());
 					} catch (JSONException e) {
 						textArea.append(e.getMessage());
 					} catch (UnsupportedEncodingException e) {
@@ -384,74 +401,71 @@ public class ProximityDetector extends Activity {
 
 				@Override
 				public int compare(DistanceTable val1, DistanceTable val2) {
-					return (val1.getVoltageVal() > val2.getVoltageVal() ? -1 : (val1
-							.getVoltageVal() == val2.getVoltageVal() ? 0 : 1));
+					return (val1.getVoltageVal() > val2.getVoltageVal() ? -1 : (val1.getVoltageVal() == val2
+							.getVoltageVal() ? 0 : 1));
 				}
 			});
-			for (int i = 0; i < irDistanceList.size(); i++) {
-				textArea.append(i + " " + irDistanceList.get(i).getVoltageVal() + " "
-						+ irDistanceList.get(i).getDistanceVal() + "\n");
-			}
+			// for (int i = 0; i < irDistanceList.size(); i++) {
+			// textArea.append(i + " " + irDistanceList.get(i).getVoltageVal() + " "
+			// + irDistanceList.get(i).getDistanceVal() + "\n");
+			// }
 		} catch (Exception ioe) {
 			ioe.printStackTrace();
 		}
 	}
-    private static final int MENU_SETTINGS = 8;
-    private static final int MENU_QUIT     = 9;
 
-    private static final int MENU_PAUSE = 1;
-    private static final int MENU_RESUME = 2;
-    private static final int MENU_RESET = 3;
-    
-    /* Creates the menu items */
-    public boolean onPrepareOptionsMenu(Menu menu) {
-        menu.clear();
-        if (mIsRunning) {
-            menu.add(0, MENU_PAUSE, 0, R.string.pause)
-            .setIcon(android.R.drawable.ic_media_pause)
-            .setShortcut('1', 'p');
-        }
-        else {
-            menu.add(0, MENU_RESUME, 0, R.string.resume)
-            .setIcon(android.R.drawable.ic_media_play)
-            .setShortcut('1', 'p');
-        }
-        menu.add(0, MENU_RESET, 0, R.string.reset)
-        .setIcon(android.R.drawable.ic_menu_close_clear_cancel)
-        .setShortcut('2', 'r');
-        menu.add(0, MENU_SETTINGS, 0, R.string.settings)
-        .setIcon(android.R.drawable.ic_menu_preferences)
-        .setShortcut('8', 's')
-        .setIntent(new Intent(this, Settings.class));
-        menu.add(0, MENU_QUIT, 0, R.string.quit)
-        .setIcon(android.R.drawable.ic_lock_power_off)
-        .setShortcut('9', 'q');
-        return true;
-    }
+	/* Creates the menu items */
+	@Override
+	public boolean onPrepareOptionsMenu(Menu menu) {
+		menu.clear();
+		if (mIsRunning) {
+			menu.add(0, Constants.MENU_PAUSE, 0, R.string.pause)
+					.setIcon(android.R.drawable.ic_media_pause).setShortcut('1', 'p');
+		} else {
+			menu.add(0, Constants.MENU_RESUME, 0, R.string.resume)
+					.setIcon(android.R.drawable.ic_media_play).setShortcut('1', 'p');
+		}
+		menu.add(0, Constants.MENU_RESET, 0, R.string.reset)
+				.setIcon(android.R.drawable.ic_menu_close_clear_cancel).setShortcut('2', 'r');
+		menu.add(0, Constants.MENU_SETTINGS, 0, R.string.settings)
+				.setIcon(android.R.drawable.ic_menu_preferences).setShortcut('8', 's');
+		menu.add(0, Constants.MENU_QUIT, 0, R.string.quit)
+				.setIcon(android.R.drawable.ic_lock_power_off).setShortcut('9', 'q');
+		return true;
+	}
 
-    /* Handles item selections */
-    public boolean onOptionsItemSelected(MenuItem item) {
-        switch (item.getItemId()) {
-            case MENU_PAUSE:
-                unbindStepService();
-                stopStepService();
-                return true;
-            case MENU_RESUME:
-                startStepService();
-                bindStepService();
-                return true;
-            case MENU_RESET:
-                resetValues(true);
-                return true;
-            case MENU_QUIT:
-                resetValues(false);
-                unbindStepService();
-                stopStepService();
-                mQuitting = true;
-                finish();
-                return true;
-        }
-        return false;
-    }
- 
+	/* Handles item selections */
+	@Override
+	public boolean onOptionsItemSelected(MenuItem item) {
+		switch (item.getItemId()) {
+		case Constants.MENU_PAUSE:
+			unbindStepService();
+			stopStepService();
+			return true;
+		case Constants.MENU_RESUME:
+			startStepService();
+			bindStepService();
+			return true;
+		case Constants.MENU_RESET:
+			resetValues(true);
+			return true;
+		case Constants.MENU_SETTINGS:
+			Intent settingIntent = new Intent(ProximityDetector.this,Settings.class);
+			ProximityDetector.this.startActivity(settingIntent);
+			return true;
+		case Constants.MENU_QUIT:
+			resetValues(false);
+			unbindStepService();
+			stopStepService();
+			mQuitting = true;
+			if (ioio_thread_ != null) {
+				ioio_thread_.stop();
+			}
+			finish();
+			System.exit(0);
+			return true;
+		}
+		return false;
+	}
+
 }

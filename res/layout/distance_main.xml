@@ -68,6 +68,9 @@
 	<TextView android:layout_width="fill_parent"
 		android:layout_height="wrap_content" android:text="@string/hello"
 		android:id="@+id/title" />
+		<Button android:layout_width="fill_parent"
+		android:layout_height="wrap_content" android:id="@+id/startIOIO"
+		android:text="Start IOIO" />
 	<Button android:layout_width="fill_parent"
 		android:layout_height="wrap_content" android:id="@+id/clear"
 		android:text="Clear" />
