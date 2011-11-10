@@ -14,6 +14,7 @@ import java.net.URLConnection;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.StringTokenizer;
 
 import org.apache.http.client.ClientProtocolException;
@@ -30,6 +31,8 @@ import android.content.Intent;
 import android.content.ServiceConnection;
 import android.content.SharedPreferences;
 import android.content.res.Resources;
+import android.hardware.SensorListener;
+import android.hardware.SensorManager;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
@@ -69,15 +72,32 @@ public class ProximityDetector extends Activity {
 
 	private int mStepValue;
 	private float mDistanceValue;
+	private int mOrientationValue;
 	private TextView mStepValueView;
 	private TextView mDistanceValueView;
+	private TextView mOrientationView;
 	private SharedPreferences mSettings;
 	private PedometerSettings mPedometerSettings;
 	private Utils mUtils;
 	private static final String TAG = "MapMe";
 	private boolean mQuitting = false; // Set when user selected Quit from menu,
-	// can be used by onPause, onStop,
-	// onDestroy
+																			// can be used by onPause, onStop,
+																			// onDestroy
+
+	private SensorManager mSensorManager;
+	private final SensorListener mListener = new SensorListener() {
+
+		public void onSensorChanged(int sensor, float[] values) {
+			synchronized (this) {
+				mOrientationValue = (int) values[0];
+			}
+			if (mOrientationView != null)
+				mOrientationView.setText(mOrientationValue + "");
+		}
+
+		public void onAccuracyChanged(int sensor, int accuracy) {
+		}
+	};
 
 	private boolean mIsRunning;
 	ArrayList<DistanceTable> irDistanceList = null;
@@ -115,7 +135,7 @@ public class ProximityDetector extends Activity {
 						mDistanceValueView.setText("0");
 					} else {
 						mDistanceValueView.setText(("" + (mDistanceValue)));
-					} 
+					}
 					if (ioio_thread_ != null)
 						ioio_thread_.scanSurrounding(mDistanceValue, 0, irDistanceList);
 					break;
@@ -164,48 +184,17 @@ public class ProximityDetector extends Activity {
 		mDistanceValue = 0;
 		mUtils = Utils.getInstance();
 		jsonObject = new JSONObject();
+		mSensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
 
 		initializeGUIElements();
 		loadDistanceMapValues();
 		createGUIHandler();
-		// startReceivingMessages();
 	}
 
 	@Override
 	protected void onStart() {
 		Log.i(TAG, "[ACTIVITY] onStart");
 		super.onStart();
-	}
-
-	private void startReceivingMessages() {
-		new Thread() {
-			@Override
-			public void run() {
-				try {
-					while (true) {
-						paraimpuURL = new URL(
-								"http://paraimpu.crs4.it/use?token=3a0653f0-a885-4eae-9230-eba4bb0daad8");
-						yc = paraimpuURL.openConnection();
-						in = new BufferedReader(new InputStreamReader(yc.getInputStream()));
-						String inputLine;
-
-						if ((inputLine = in.readLine()) != null) {
-							// Process on the input
-						}
-						Thread.sleep(1000);
-					}
-				} catch (Exception e) {
-					e.printStackTrace();
-				} finally {
-					try {
-						in.close();
-					} catch (IOException e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
-					}
-				}
-			}
-		}.start();
 	}
 
 	/**
@@ -215,6 +204,9 @@ public class ProximityDetector extends Activity {
 	@Override
 	protected void onResume() {
 		super.onResume();
+
+		mSensorManager.registerListener(mListener, SensorManager.SENSOR_ORIENTATION,
+				SensorManager.SENSOR_DELAY_UI);
 
 		mStepValueView = (TextView) findViewById(R.id.step_value);
 		mDistanceValueView = (TextView) findViewById(R.id.distance_value);
@@ -254,12 +246,20 @@ public class ProximityDetector extends Activity {
 			mPedometerSettings.saveServiceRunningWithTimestamp(mIsRunning);
 		}
 
-		super.onPause();
+		mSensorManager.unregisterListener(mListener);
 
 		try {
 			ioio_thread_.join();
 		} catch (InterruptedException e) {
 		}
+
+		super.onPause();
+	}
+
+	@Override
+	protected void onStop() {
+		mSensorManager.unregisterListener(mListener);
+		super.onStop();
 	}
 
 	private void startStepService() {
@@ -321,6 +321,7 @@ public class ProximityDetector extends Activity {
 	private void initializeGUIElements() {
 		textArea = (EditText) findViewById(R.id.textarea);
 		textArea.setFocusable(false);
+		mOrientationView = (TextView) findViewById(R.id.orientationText);
 		clearBtn = (Button) findViewById(R.id.clear);
 		clearBtn.setOnClickListener(new OnClickListener() {
 
@@ -336,7 +337,7 @@ public class ProximityDetector extends Activity {
 			public void onClick(View v) {
 				ioio_thread_ = new IOIOThread();
 				ioio_thread_.start();
-//				resetValues(true);
+				// resetValues(true);
 			}
 		});
 	}
@@ -349,6 +350,10 @@ public class ProximityDetector extends Activity {
 					try {
 						jsonObject.put("token", "441537b3-83fb-4487-9a47-35cc01132670");
 						jsonObject.put("content-type", "text/plain");
+						JSONObject finalMessage = new JSONObject();
+						finalMessage.put("distance", mDistanceValue);
+						finalMessage.put("orientation", mOrientationValue);
+						finalMessage.put("irReadings", msg.obj.toString());
 						JSONObject data = new JSONObject();
 						data.put("message", msg.obj.toString());
 						jsonObject.put("data", data);
@@ -359,7 +364,11 @@ public class ProximityDetector extends Activity {
 						httpost.setHeader("Accept", "application/json");
 						httpost.setHeader("Content-type", "application/json");
 						httpclient.execute(httpost);
-						textArea.append(msg.obj.toString());
+						textArea.append("\nDistance = " + finalMessage.getInt("distance"));
+						textArea.append("\nOrientation = " + finalMessage.getInt("orientation"));
+						ArrayList<HashMap<Double, Double>> irReadings = convertToIRReadings(finalMessage
+								.getString("irReadings"));
+						textArea.append("\nIR Readings = " + irReadings);
 					} catch (JSONException e) {
 						textArea.append(e.getMessage());
 					} catch (UnsupportedEncodingException e) {
@@ -373,6 +382,22 @@ public class ProximityDetector extends Activity {
 					textArea.setText("");
 				else
 					textArea.append(msg.obj.toString());
+			}
+
+			private ArrayList<HashMap<Double, Double>> convertToIRReadings(String irValueString) {
+				ArrayList<HashMap<Double, Double>> irReadings = new ArrayList<HashMap<Double, Double>>();
+				StringTokenizer irValueTokenizer = new StringTokenizer(irValueString.substring(1,
+						irValueString.length() - 1), ",");
+				while (irValueTokenizer.hasMoreTokens()) {
+					String irReading = irValueTokenizer.nextToken().trim();
+					double angle = new Double(irReading.substring(1, irReading.indexOf('=')));
+					double distance = new Double(irReading.substring(irReading.indexOf('=') + 1,
+							irReading.length() - 1));
+					HashMap<Double, Double> irMap = new HashMap<Double, Double>();
+					irMap.put(angle, distance);
+					irReadings.add(irMap);
+				}
+				return irReadings;
 			}
 		};
 	}
@@ -405,10 +430,6 @@ public class ProximityDetector extends Activity {
 							.getVoltageVal() ? 0 : 1));
 				}
 			});
-			// for (int i = 0; i < irDistanceList.size(); i++) {
-			// textArea.append(i + " " + irDistanceList.get(i).getVoltageVal() + " "
-			// + irDistanceList.get(i).getDistanceVal() + "\n");
-			// }
 		} catch (Exception ioe) {
 			ioe.printStackTrace();
 		}
@@ -450,7 +471,7 @@ public class ProximityDetector extends Activity {
 			resetValues(true);
 			return true;
 		case Constants.MENU_SETTINGS:
-			Intent settingIntent = new Intent(ProximityDetector.this,Settings.class);
+			Intent settingIntent = new Intent(ProximityDetector.this, Settings.class);
 			ProximityDetector.this.startActivity(settingIntent);
 			return true;
 		case Constants.MENU_QUIT:

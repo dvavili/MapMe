@@ -85,8 +85,7 @@ public class IOIOThread extends Thread {
 						distanceList.add(distMap);
 						sleep(200);
 					}
-					ProximityDetector.showMsg("Distance:" + distance + " Orientation:" + orientation + " "
-							+ distanceList.toString(), Constants.PUBLISH);
+					ProximityDetector.showMsg(distanceList.toString(), Constants.PUBLISH);
 				} catch (ConnectionLostException e) {
 					ProximityDetector.showMsg(e.getMessage(), Constants.DONT_PUBLISH);
 					connect();

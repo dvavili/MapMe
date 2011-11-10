@@ -98,5 +98,6 @@
     <string name="quit">Quit</string>
     <string name="meters">meters</string>
     <string name="centimeters">centimeters</string>
+    <string name="orientation_label">Orientation</string>
 
 </resources>
