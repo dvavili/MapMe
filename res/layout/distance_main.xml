@@ -40,8 +40,12 @@
 				android:background="@color/display_background"
 				android:paddingBottom="@dimen/padding" />
 		</LinearLayout>
-	</LinearLayout>
-	<TextView android:id="@+id/orientationText"
+		<LinearLayout android:id="@+id/box_orientation"
+			android:orientation="vertical" android:layout_width="fill_parent"
+			android:layout_height="wrap_content" android:gravity="center_horizontal"
+			android:layout_weight="1">
+
+			<TextView android:id="@+id/orientationText"
 				android:textSize="@dimen/value" android:layout_width="fill_parent"
 				android:layout_height="wrap_content" android:gravity="center_horizontal"
 				android:background="@color/display_background" android:paddingTop="@dimen/padding"
@@ -50,14 +54,53 @@
 			<TextView android:id="@+id/orientationLabel"
 				android:gravity="center_horizontal" android:layout_width="fill_parent"
 				android:layout_height="wrap_content" android:textSize="@dimen/units"
-				android:text="@string/orientation_label" android:background="@color/display_background"
+				android:text="degrees" android:background="@color/display_background"
 				android:paddingBottom="@dimen/padding" />
+		</LinearLayout>
+	</LinearLayout>
+	<LinearLayout android:id="@+id/row_2" android:orientation="horizontal"
+		android:layout_width="fill_parent" android:layout_height="wrap_content"
+		android:paddingBottom="@dimen/row_spacing">
+		<LinearLayout android:id="@+id/settingsDutyCycle"
+			android:orientation="vertical" android:layout_width="fill_parent"
+			android:layout_height="wrap_content" android:gravity="center_horizontal"
+			android:paddingRight="@dimen/margin" android:layout_weight="1">
+			<EditText android:id="@+id/duty_cycle" android:textSize="@dimen/value"
+				android:layout_width="fill_parent" android:layout_height="wrap_content"
+				android:gravity="center_horizontal" android:paddingLeft="@dimen/padding"
+				android:paddingRight="@dimen/padding" android:paddingTop="@dimen/padding"
+				android:text="" />
+			<TextView android:id="@+id/duty_units" android:gravity="center_horizontal"
+				android:layout_width="fill_parent" android:layout_height="wrap_content"
+				android:textSize="@dimen/units" android:text="Duty Cycle"
+				android:background="@color/display_background"
+				android:paddingBottom="@dimen/padding" />
+		</LinearLayout>
+		<LinearLayout android:id="@+id/settingsSleepTime"
+			android:orientation="vertical" android:layout_width="fill_parent"
+			android:layout_height="wrap_content" android:gravity="center_horizontal"
+			android:layout_weight="1">
+			<EditText android:id="@+id/sleep_time" android:textSize="@dimen/value"
+				android:layout_width="fill_parent" android:layout_height="wrap_content"
+				android:gravity="center_horizontal" android:paddingTop="@dimen/padding"
+				android:paddingRight="@dimen/padding" android:paddingLeft="@dimen/padding"
+				android:text="" />
+			<TextView android:id="@+id/sleep_units" android:gravity="center_horizontal"
+				android:layout_width="fill_parent" android:layout_height="wrap_content"
+				android:textSize="@dimen/units" android:text="Sleep Time"
+				android:background="@color/display_background"
+				android:paddingBottom="@dimen/padding" />
+		</LinearLayout>
+	</LinearLayout>
+	<Button android:layout_width="fill_parent"
+		android:layout_height="wrap_content" android:id="@+id/editSettings"
+		android:text="Edit settings" />
+	<Button android:layout_width="fill_parent"
+		android:layout_height="wrap_content" android:id="@+id/step"
+		android:text="Increase distance" />
 	<Button android:layout_width="fill_parent"
 		android:layout_height="wrap_content" android:id="@+id/startIOIO"
 		android:text="Start IOIO" />
-	<Button android:layout_width="fill_parent"
-		android:layout_height="wrap_content" android:id="@+id/clear"
-		android:text="Clear" />
 	<ScrollView android:layout_width="fill_parent"
 		android:layout_height="wrap_content">
 		<EditText android:layout_width="fill_parent"
