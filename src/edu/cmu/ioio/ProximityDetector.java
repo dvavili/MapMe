@@ -10,7 +10,6 @@ import java.io.DataInputStream;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
 import java.net.URL;
 import java.net.URLConnection;
@@ -63,12 +62,12 @@ import edu.cmu.distance.Utils;
  * HelloIOIOPower example.
  */
 public class ProximityDetector extends AbstractIOIOActivity {
-	EditText textArea, dutyCycleArea, sleepTimeArea;
-	// private IOIOThread ioio_thread_;
+	EditText textArea;// dutyCycleArea, sleepTimeArea;
 	static Handler guiHandler;
 	public static boolean connected = false;
 	JSONObject jsonObject;
-	Button startIOIOBtn, stepButton, editSettingsBtn;
+	Button stepButton;// editSettingsBtn;
+	Button clockwiseButton, antiClockwiseButton;
 
 	URL paraimpuURL = null;
 	URLConnection yc = null;
@@ -93,10 +92,19 @@ public class ProximityDetector extends AbstractIOIOActivity {
 	};
 
 	ScanStatus scanStatus;
+
+	private enum CalibrationStatus {
+		CLOCKWISE, ANTI_CLOCKWISE, NO_CALIBRATION_REQUIRED;
+	};
+
+	CalibrationStatus calibrationStatus;
+
 	int SERVO_ROTATION_TIME = 25;
+	protected final static int SERVO_TUNED_CENTER = 1500;
+	protected static int ANGLE_VARIATION = 1000;
 
 	public static int sleepTime = 750;// 46;
-	public static int numLoops = 20;
+	public static int numLoops = 12;
 
 	private SensorManager mSensorManager;
 	private final SensorListener mListener = new SensorListener() {
@@ -145,13 +153,6 @@ public class ProximityDetector extends AbstractIOIOActivity {
 					break;
 				case Constants.DISTANCE_MSG:
 					mDistanceValue = msg.arg1 / 1000f;
-					// if (mDistanceValue <= 0) {
-					// mDistanceValueView.setText("0");
-					// } else {
-					// mDistanceValueView.setText(("" + (mDistanceValue)));
-					// }
-					// if (ioio_thread_ != null && connected == true)
-					// ioio_thread_.scanSurrounding(mDistanceValue, 0, irDistanceList);
 					break;
 				default:
 					super.handleMessage(msg);
@@ -201,6 +202,7 @@ public class ProximityDetector extends AbstractIOIOActivity {
 		mSensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
 
 		scanStatus = ScanStatus.INITIALIZED;
+		calibrationStatus = CalibrationStatus.NO_CALIBRATION_REQUIRED;
 		initializeGUIElements();
 		loadDistanceMapValues();
 		createGUIHandler();
@@ -338,17 +340,6 @@ public class ProximityDetector extends AbstractIOIOActivity {
 		textArea = (EditText) findViewById(R.id.textarea);
 		textArea.setFocusable(false);
 		mOrientationView = (TextView) findViewById(R.id.orientationText);
-		startIOIOBtn = (Button) findViewById(R.id.startIOIO);
-		startIOIOBtn.setOnClickListener(new OnClickListener() {
-
-			@Override
-			public void onClick(View v) {
-				ioio_thread_ = new IOIOThread();
-				ioio_thread_.start();
-				if (connected == true)
-					startIOIOBtn.setClickable(false);
-			}
-		});
 		stepButton = (Button) findViewById(R.id.step);
 		stepButton.setOnClickListener(new OnClickListener() {
 
@@ -367,18 +358,40 @@ public class ProximityDetector extends AbstractIOIOActivity {
 				// IOIOThread.scanSurrounding(stepDistance, 0, irDistanceList);
 			}
 		});
-		sleepTimeArea = (EditText) findViewById(R.id.sleep_time);
-		dutyCycleArea = (EditText) findViewById(R.id.duty_cycle);
 
-		editSettingsBtn = (Button) findViewById(R.id.editSettings);
-		editSettingsBtn.setOnClickListener(new OnClickListener() {
+		clockwiseButton = (Button) findViewById(R.id.clockwiseRotation);
+		clockwiseButton.setOnClickListener(new OnClickListener() {
 
 			@Override
 			public void onClick(View v) {
-				numLoops = new Integer(dutyCycleArea.getText().toString());
-				SERVO_ROTATION_TIME = new Integer(sleepTimeArea.getText().toString());
+				synchronized (calibrationStatus) {
+					calibrationStatus = CalibrationStatus.CLOCKWISE;
+				}
 			}
 		});
+
+		antiClockwiseButton = (Button) findViewById(R.id.antiClockwiseRotation);
+		antiClockwiseButton.setOnClickListener(new OnClickListener() {
+
+			@Override
+			public void onClick(View v) {
+				synchronized (calibrationStatus) {
+					calibrationStatus = CalibrationStatus.ANTI_CLOCKWISE;
+				}
+			}
+		});
+		// sleepTimeArea = (EditText) findViewById(R.id.sleep_time);
+		// dutyCycleArea = (EditText) findViewById(R.id.duty_cycle);
+		//
+		// editSettingsBtn = (Button) findViewById(R.id.editSettings);
+		// editSettingsBtn.setOnClickListener(new OnClickListener() {
+		//
+		// @Override
+		// public void onClick(View v) {
+		// numLoops = new Integer(dutyCycleArea.getText().toString());
+		// SERVO_ROTATION_TIME = new Integer(sleepTimeArea.getText().toString());
+		// }
+		// });
 	}
 
 	private void createGUIHandler() {
@@ -391,9 +404,9 @@ public class ProximityDetector extends AbstractIOIOActivity {
 						jsonObject.put("content-type", "text/plain");
 						JSONObject finalMessage = new JSONObject();
 						// finalMessage.put("distance", mDistanceValue);
-						finalMessage.put("distance", 5);
-						// finalMessage.put("orientation", mOrientationValue);
-						finalMessage.put("orientation", 0);
+						finalMessage.put("distance", 20);
+						 finalMessage.put("orientation", mOrientationValue);
+//						finalMessage.put("orientation", 0);
 						finalMessage.put("irReadings", msg.obj.toString());
 						JSONObject data = new JSONObject();
 						data.put("message", finalMessage.toString());
@@ -522,9 +535,6 @@ public class ProximityDetector extends AbstractIOIOActivity {
 			unbindStepService();
 			stopStepService();
 			mQuitting = true;
-			if (ioio_thread_ != null) {
-				ioio_thread_.stop();
-			}
 			finish();
 			System.exit(0);
 			return true;
@@ -548,7 +558,7 @@ public class ProximityDetector extends AbstractIOIOActivity {
 		// private PulseInput sonarInput_;
 		Object syncObj = new Object();
 
-		private final int proximitySensorPin = 41;
+		private final int proximitySensorPin = 45;
 		private final int servoMotorPin = 5;
 		private final int PWMFrequency = 50;
 
@@ -567,42 +577,29 @@ public class ProximityDetector extends AbstractIOIOActivity {
 																																		// periods
 
 				enableUi(true);
+//				new Thread() {
+//					public void run() {
+//						while(true) {
+//						synchronized (calibrationStatus) {
+//							if (calibrationStatus != CalibrationStatus.NO_CALIBRATION_REQUIRED) {
+//								calibrate(calibrationStatus);
+//								calibrationStatus = CalibrationStatus.NO_CALIBRATION_REQUIRED;
+//							}
+//						}
+//						try {
+//							sleep(100);
+//							} catch (InterruptedException e) {
+//							// TODO Auto-generated catch block
+//							e.printStackTrace();
+//						}
+//						}
+//					}
+//				}.start();
 			} catch (ConnectionLostException e) {
 				enableUi(false);
 				throw e;
 			}
 		}
-
-		/** Thread body. */
-		// @Override
-		// public void run() {
-		// super.run();
-		// try {
-		// ioio_ = IOIOFactory.create();
-		// connect();
-		// ProximityDetector.connected = true;
-		// } catch (Exception e) {
-		// ProximityDetector.showMsg(e.getMessage(), Constants.DONT_PUBLISH);
-		// }
-		// }
-		//
-		// private void connect() {
-		// try {
-		// ioio_.waitForConnect();
-		// // sonarOutput_ = ioio_.openDigitalOutput(sonarOutputPin);
-		// // DigitalInput.Spec spec = new
-		// // DigitalInput.Spec(sonarInputPin,Mode.PULL_UP);
-		// // sonarInput_ = ioio_.openPulseInput(spec,
-		// // ClockRate.RATE_40KHz,PulseMode.POSITIVE,true);
-		// proximitySensor_ = ioio_.openAnalogInput(proximitySensorPin);
-		// _servo = ioio_.openPwmOutput(servoMotorPin, PWMFrequency); // 20ms
-		// periods
-		// } catch (ConnectionLostException e) {
-		// ProximityDetector.showMsg(e.getMessage(), Constants.DONT_PUBLISH);
-		// } catch (IncompatibilityException e) {
-		// ProximityDetector.showMsg(e.getMessage(), Constants.DONT_PUBLISH);
-		// }
-		// }
 
 		public void scanSurrounding(final float distance, final int orientation,
 				final ArrayList<DistanceTable> distMap) throws ConnectionLostException {
@@ -614,49 +611,79 @@ public class ProximityDetector extends AbstractIOIOActivity {
 						HashMap<Double, Double> distanceList = new HashMap<Double, Double>();
 						int i = 0;
 						try {
-							float volt = 0;
+							float volt = 0, previousVoltReading = -1;
 							double distance = 0;
-							int pulseWidth = 500, multiplier = 1, totalRotationTime = 0;
+							int pulseWidth = 0, multiplier = 1, totalRotationTime = 0;
 							long initialTime = 0, endTime = 0, adjustmentTime = SERVO_ROTATION_TIME, loopTime = 0;
+							pulseWidth = SERVO_TUNED_CENTER - ANGLE_VARIATION;
+							totalRotationTime = 0;
 							do {
-								// volt = proximitySensor_.getVoltage();
+								sleep(15);
+								volt = proximitySensor_.getVoltage();
+//								ProximityDetector.showMsg(previousVoltReading + " " + volt + "\n", Constants.DONT_PUBLISH);
+//								if(previousVoltReading == volt) {
+//									ProximityDetector.showMsg("Rescanning values\n", Constants.DONT_PUBLISH);
+//									adjustmentTime = rotateServo(pulseWidth, loopTime);
+//									continue;
+//								}
+//								previousVoltReading = volt;
 								distance = DistanceTable.getDistance(distMap, volt);
-								distanceList.put(new Double(i), new Double(endTime - initialTime));
+								distanceList.put(new Double((i * 15) + ((adjustmentTime - SERVO_ROTATION_TIME) * (5/3))), new Double(distance));
 								sleep(sleepTime);
-								if (i == numLoops / 2) {
+								if (i == numLoops) {
 									ProximityDetector.showMsg("Turning back\n", Constants.DONT_PUBLISH);
-									pulseWidth = 2500;
+									pulseWidth = SERVO_TUNED_CENTER + ANGLE_VARIATION;
 									multiplier = -1;
-								} else
+									loopTime = 515 + ((totalRotationTime - (numLoops * SERVO_ROTATION_TIME)) * (515 / 300)); // ms
+									ProximityDetector.showMsg(i + " L=" + loopTime + "\n", Constants.DONT_PUBLISH);
+								} else {
 									multiplier = 1;
-								if (i != 0)
-									adjustmentTime = endTime - initialTime;
-								loopTime = SERVO_ROTATION_TIME
-										+ (multiplier * (SERVO_ROTATION_TIME - adjustmentTime));
-								ProximityDetector.showMsg(i + " L=" + loopTime + " (" + SERVO_ROTATION_TIME + "+("
-										+ multiplier + "*(" + SERVO_ROTATION_TIME + "-" + adjustmentTime + ")))\n",
-										Constants.DONT_PUBLISH);
+									loopTime = SERVO_ROTATION_TIME;
+									ProximityDetector.showMsg(i + /*
+																								 * " L=" + loopTime + " (" +
+																								 * SERVO_ROTATION_TIME + "+(" +
+																								 * multiplier + "*(" +
+																								 * SERVO_ROTATION_TIME + "-" +
+																								 * adjustmentTime + ")))
+																								 */" " + distance + "\n", Constants.DONT_PUBLISH);
+								}
+								adjustmentTime = rotateServo(pulseWidth, loopTime);
+								i++;
 								if (pulseWidth == 500)
 									totalRotationTime += adjustmentTime;
-								else
-									totalRotationTime -= adjustmentTime;
-								initialTime = System.currentTimeMillis();
-								_servo.setPulseWidth(pulseWidth);
-								sleep(loopTime);
-								_servo.setPulseWidth(0);
-								endTime = System.currentTimeMillis();
-								i++;
-							} while (i < numLoops);
+							} while (i <= numLoops);
 							_servo.setPulseWidth(0);
 							ProximityDetector.showMsg("Total Rotation Time = " + totalRotationTime + "\n",
 									Constants.DONT_PUBLISH);
-							ProximityDetector.showMsg(distanceList.toString(), Constants.DONT_PUBLISH);
+							ProximityDetector.showMsg(
+									"EndTime - InitialTime = " + (endTime - initialTime) + "\n",
+									Constants.DONT_PUBLISH);
+							ProximityDetector.showMsg(distanceList.toString(), Constants.PUBLISH);
 						} catch (InterruptedException e) {
 							ProximityDetector.showMsg(e.getMessage(), Constants.DONT_PUBLISH);
+						} catch (ConnectionLostException ce) {
+							enableUi(false);
 						} catch (Exception e) {
 							ProximityDetector.showMsg(e.getMessage(), Constants.DONT_PUBLISH);
 						}
 					}
+				}
+
+				private long rotateServo(int pulseWidth, long loopTime) {
+					long initialTime = 0, endTime = 0;
+					try {
+					initialTime = System.currentTimeMillis();
+					_servo.setPulseWidth(pulseWidth);
+					sleep(loopTime);
+					_servo.setPulseWidth(0);
+					endTime = System.currentTimeMillis();
+					sleep(loopTime);
+					} catch(InterruptedException e) {
+						
+					} catch(ConnectionLostException ce) {
+						
+					}
+					return endTime - initialTime;
 				}
 			}.start();
 		}
@@ -669,17 +696,41 @@ public class ProximityDetector extends AbstractIOIOActivity {
 			try {
 				synchronized (scanStatus) {
 					if (scanStatus == ScanStatus.TO_BE_SCANNED) {
-						scanSurrounding(mDistanceValue, 0, irDistanceList);
+						scanSurrounding(mDistanceValue, mOrientationValue, irDistanceList);
 						scanStatus = ScanStatus.SCANNING_COMPLETE;
 					}
 				}
-				sleep(10);
+				sleep(50);
 			} catch (InterruptedException e) {
 				ioio_.disconnect();
 			} catch (ConnectionLostException e) {
 				enableUi(false);
 				ProximityDetector.showMsg(e.getMessage(), Constants.DONT_PUBLISH);
 				throw e;
+			}
+		}
+
+		private void calibrate(CalibrationStatus calStatus) {
+			synchronized (calStatus) {
+				try {
+					switch (calStatus) {
+					case CLOCKWISE:
+						_servo.setPulseWidth(500);
+						sleep(10);
+						_servo.setPulseWidth(0);
+						break;
+					case ANTI_CLOCKWISE:
+						_servo.setPulseWidth(2500);
+						sleep(10);
+						_servo.setPulseWidth(0);
+						break;
+					}
+				} catch (ConnectionLostException e) {
+					enableUi(false);
+				} catch (InterruptedException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
 			}
 		}
 	}
@@ -693,13 +744,10 @@ public class ProximityDetector extends AbstractIOIOActivity {
 		runOnUiThread(new Runnable() {
 			@Override
 			public void run() {
-				startIOIOBtn.setEnabled(enable);
 				stepButton.setEnabled(enable);
-				editSettingsBtn.setEnabled(enable);
-				dutyCycleArea.setEnabled(enable);
-				sleepTimeArea.setEnabled(enable);
+				clockwiseButton.setEnabled(enable);
+				antiClockwiseButton.setEnabled(enable);
 			}
 		});
 	}
-
 }
