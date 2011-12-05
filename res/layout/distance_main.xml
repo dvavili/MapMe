@@ -6,7 +6,7 @@
 		android:layout_width="fill_parent" android:layout_height="wrap_content"
 		android:paddingBottom="@dimen/row_spacing">
 
-		<LinearLayout android:id="@+id/box_steps"
+		<!-- <LinearLayout android:id="@+id/box_steps"
 			android:orientation="vertical" android:layout_width="fill_parent"
 			android:layout_height="wrap_content" android:gravity="center_horizontal"
 			android:paddingRight="@dimen/margin" android:layout_weight="1">
@@ -22,7 +22,7 @@
 				android:background="@color/display_background"
 				android:paddingBottom="@dimen/padding" />
 
-		</LinearLayout>
+		</LinearLayout> -->
 
 		<LinearLayout android:id="@+id/box_distance"
 			android:orientation="vertical" android:layout_width="fill_parent"

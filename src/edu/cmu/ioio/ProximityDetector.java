@@ -76,7 +76,7 @@ public class ProximityDetector extends AbstractIOIOActivity {
 	private int mStepValue;
 	private float mDistanceValue, stepDistance = 0;
 	private int mOrientationValue;
-	private TextView mStepValueView;
+//	private TextView mStepValueView;
 	private TextView mDistanceValueView;
 	private TextView mOrientationView;
 	private SharedPreferences mSettings;
@@ -103,7 +103,7 @@ public class ProximityDetector extends AbstractIOIOActivity {
 	protected final static int SERVO_TUNED_CENTER = 1500;
 	protected static int ANGLE_VARIATION = 1000;
 
-	public static int sleepTime = 750;// 46;
+	public static int sleepTime = 250;// 46;
 	public static int numLoops = 12;
 
 	private SensorManager mSensorManager;
@@ -149,7 +149,7 @@ public class ProximityDetector extends AbstractIOIOActivity {
 				switch (msg.what) {
 				case Constants.STEPS_MSG:
 					mStepValue = msg.arg1;
-					mStepValueView.setText("" + mStepValue);
+//					mStepValueView.setText("" + mStepValue);
 					break;
 				case Constants.DISTANCE_MSG:
 					mDistanceValue = msg.arg1 / 1000f;
@@ -226,7 +226,7 @@ public class ProximityDetector extends AbstractIOIOActivity {
 		mSensorManager.registerListener(mListener, SensorManager.SENSOR_ORIENTATION,
 				SensorManager.SENSOR_DELAY_UI);
 
-		mStepValueView = (TextView) findViewById(R.id.step_value);
+//		mStepValueView = (TextView) findViewById(R.id.step_value);
 		mDistanceValueView = (TextView) findViewById(R.id.distance_value);
 
 		mSettings = PreferenceManager.getDefaultSharedPreferences(this);
@@ -312,7 +312,7 @@ public class ProximityDetector extends AbstractIOIOActivity {
 		if (mService != null && mIsRunning) {
 			mService.resetValues();
 		} else {
-			mStepValueView.setText("0");
+//			mStepValueView.setText("0");
 			mDistanceValueView.setText("0");
 			SharedPreferences state = getSharedPreferences("state", 0);
 			SharedPreferences.Editor stateEditor = state.edit();
@@ -345,7 +345,7 @@ public class ProximityDetector extends AbstractIOIOActivity {
 
 			@Override
 			public void onClick(View v) {
-				stepDistance += 5;
+				stepDistance += 20;
 				if (stepDistance <= 0) {
 					mDistanceValueView.setText("0");
 				} else {
@@ -577,24 +577,24 @@ public class ProximityDetector extends AbstractIOIOActivity {
 																																		// periods
 
 				enableUi(true);
-//				new Thread() {
-//					public void run() {
-//						while(true) {
-//						synchronized (calibrationStatus) {
-//							if (calibrationStatus != CalibrationStatus.NO_CALIBRATION_REQUIRED) {
-//								calibrate(calibrationStatus);
-//								calibrationStatus = CalibrationStatus.NO_CALIBRATION_REQUIRED;
-//							}
-//						}
-//						try {
-//							sleep(100);
-//							} catch (InterruptedException e) {
-//							// TODO Auto-generated catch block
-//							e.printStackTrace();
-//						}
-//						}
-//					}
-//				}.start();
+				new Thread() {
+					public void run() {
+						while(true) {
+						synchronized (calibrationStatus) {
+							if (calibrationStatus != CalibrationStatus.NO_CALIBRATION_REQUIRED) {
+								calibrate(calibrationStatus);
+								calibrationStatus = CalibrationStatus.NO_CALIBRATION_REQUIRED;
+							}
+						}
+						try {
+							sleep(100);
+							} catch (InterruptedException e) {
+							// TODO Auto-generated catch block
+							e.printStackTrace();
+						}
+						}
+					}
+				}.start();
 			} catch (ConnectionLostException e) {
 				enableUi(false);
 				throw e;
